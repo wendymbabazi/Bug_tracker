@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bug Tracker Lite</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0; padding: 20px;
+      background-color: #f4f4f4;
+    }
+    h1 {
+      text-align: center;
+    }
+    form {
+      background: #fff;
+      padding: 20px;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1rem;
+      resize: vertical;
+    }
+    button {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background: #218838;
+    }
+    .bug-list {
+      margin-top: 10px;
+    }
+    .bug-item {
+      background: #fff;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 6px;
+      box-shadow: 0 0 6px rgba(0,0,0,0.1);
+      position: relative;
+    }
+    .bug-title {
+      font-weight: bold;
+      font-size: 1.2rem;
+      margin-bottom: 5px;
+      text-transform: capitalize;
+    }
+    .bug-description {
+      margin-bottom: 8px;
+      white-space: pre-wrap;
+    }
+    .bug-priority {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      text-transform: capitalize;
+      color: white;
+      margin-right: 10px;
+    }
+    .priority-low { background-color: #28a745; }
+    .priority-medium { background-color: #ffc107; color: #212529; }
+    .priority-high { background-color: #dc3545; }
+    .bug-status {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 12px;
+      background-color: #6c757d;
+      color: white;
+      font-size: 0.9rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    .bug-actions {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+    }
+    .bug-actions button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.1rem;
+      margin-left: 10px;
+      transition: color 0.2s;
+      color: #007bff;
+    }
+    .bug-actions button:hover {
+      color: #0056b3;
+    }
+    .filter-container {
+      margin-bottom: 15px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    select {
+      flex: 1;
+      max-width: 200px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Bug Tracker Lite</h1>
+  
+  <form id="bugForm">
+    <input type="text" id="bugTitle" placeholder="Bug Title" required />
+    <textarea id="bugDescription" placeholder="Bug Description" required></textarea>
+    <select id="bugPriority" required>
+      <option value="" disabled selected>Select Priority</option>
+      <option value="low">Low</option>
+      <option value="medium">Medium</option>
+      <option value="high">High</option>
+    </select>
+    <button type="submit">Submit Bug</button>
+  </form>
+
+  <div class="filter-container">
+    <select id="filterPriority">
+      <option value="all" selected>Filter by Priority (All)</option>
+      <option value="low">Low</option>
+      <option value="medium">Medium</option>
+      <option value="high">High</option>
+    </select>
+
+    <select id="filterStatus">
+      <option value="all" selected>Filter by Status (All)</option>
+      <option value="open">Open</option>
+      <option value="closed">Closed</option>
+    </select>
+  </div>
+
+  <div class="bug-list" id="bugList"></div>
+
+  <script>
+    (() => {
+      // Selectors
+      const bugForm = document.getElementById('bugForm');
+      const bugTitleInput = document.getElementById('bugTitle');
+      const bugDescriptionInput = document.getElementById('bugDescription');
+      const bugPriorityInput = document.getElementById('bugPriority');
+      const bugList = document.getElementById('bugList');
+      const filterPriority = document.getElementById('filterPriority');
+      const filterStatus = document.getElementById('filterStatus');
+
+      // Load bugs from localStorage or initialize empty array
+      let bugs = JSON.parse(localStorage.getItem('bugs')) || [];
+
+      // Save bugs to localStorage
+      function saveBugs() {
+        localStorage.setItem('bugs', JSON.stringify(bugs));
+      }
+
+      // Render the bugs list based on filters
+      function renderBugs() {
+        bugList.innerHTML = '';
+        const priorityFilter = filterPriority.value;
+        const statusFilter = filterStatus.value;
+
+        const filteredBugs = bugs.filter(bug => {
+          const priorityMatch = (priorityFilter === 'all') || (bug.priority === priorityFilter);
+          const statusMatch = (statusFilter === 'all') || (bug.status === statusFilter);
+          return priorityMatch && statusMatch;
+        });
+
+        if (filteredBugs.length === 0) {
+          bugList.innerHTML = '<p>No bugs found.</p>';
+          return;
+        }
+
+        filteredBugs.forEach(bug => {
+          const bugDiv = document.createElement('div');
+          bugDiv.classList.add('bug-item');
+
+          bugDiv.innerHTML = `
+            <div class="bug-title">${bug.title}</div>
+            <div class="bug-description">${bug.description}</div>
+            <span class="bug-priority priority-${bug.priority}">${bug.priority}</span>
+            <span class="bug-status" title="Click to toggle status" data-id="${bug.id}">${bug.status}</span>
+            <div class="bug-actions">
+              <button title="Edit" data-id="${bug.id}" aria-label="Edit bug">✏️</button>
+              <button title="Delete" data-id="${bug.id}" aria-label="Delete bug">🗑️</button>
+            </div>
+          `;
+
+          bugList.appendChild(bugDiv);
+        });
+      }
+
+      // Add new bug
+      bugForm.addEventListener('submit', e => {
+        e.preventDefault();
+        const title = bugTitleInput.value.trim();
+        const description = bugDescriptionInput.value.trim();
+        const priority = bugPriorityInput.value;
+
+        if (!title || !description || !priority) {
+          alert('Please fill in all fields');
+          return;
+        }
+
+        const newBug = {
+          id: Date.now().toString(),
+          title,
+          description,
+          priority,
+          status: 'open' // default status
+        };
+
+        bugs.push(newBug);
+        saveBugs();
+        renderBugs();
+
+        // Reset form
+        bugForm.reset();
+      });
+
+      // Toggle status (open/closed)
+      bugList.addEventListener('click', e => {
+        if (e.target.classList.contains('bug-status')) {
+          const bugId = e.target.getAttribute('data-id');
+          const bug = bugs.find(b => b.id === bugId);
+          if (bug) {
+            bug.status = bug.status === 'open' ? 'closed' : 'open';
+            saveBugs();
+            renderBugs();
+          }
+        }
+      });
+
+      // Delete bug
+      bugList.addEventListener('click', e => {
+        if (e.target.title === 'Delete') {
+          const bugId = e.target.getAttribute('data-id');
+          bugs = bugs.filter(b => b.id !== bugId);
+          saveBugs();
+          renderBugs();
+        }
+      });
+
+      // Edit bug
+      bugList.addEventListener('click', e => {
+        if (e.target.title === 'Edit') {
+          const bugId = e.target.getAttribute('data-id');
+          const bug = bugs.find(b => b.id === bugId);
+          if (bug) {
+            // Prefill form with bug data for editing
+            bugTitleInput.value = bug.title;
+            bugDescriptionInput.value = bug.description;
+            bugPriorityInput.value = bug.priority;
+
+            // Remove the old bug from list (to update on submit)
+            bugs = bugs.filter(b => b.id !== bugId);
+            saveBugs();
+            renderBugs();
+          }
+        }
+      });
+
+      // Filter controls
+      filterPriority.addEventListener('change', renderBugs);
+      filterStatus.addEventListener('change', renderBugs);
+
+      // Initial rendering on page load
+      renderBugs();
+
+    })();
+  </script>
+</body>
+</html>
+
